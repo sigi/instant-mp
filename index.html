@@ -387,6 +387,8 @@
         .replace(/K/g, '♦')  // Karo (diamonds)
         .replace(/C/g, '♥')  // Coeur (hearts)
         .replace(/P/g, '♠')  // Pik (spades)
+        .replace(/-/g, '−')  // Replace hyphen-minus with mathematical minus
+
       
       return formatted
     }
