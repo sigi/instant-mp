@@ -35,6 +35,15 @@
       margin-bottom: 20px;
     }
 
+    .upload-controls {
+      margin-top: 8px;
+    }
+
+    .upload-controls button {
+      padding: 8px 16px;
+      font-size: 14px;
+    }
+
     label {
       display: block;
       font-weight: 600;
@@ -273,20 +282,71 @@
     <div class="input-group">
       <label for="xmlInput">Tournament Results (XML .r7t file):</label>
       <textarea id="xmlInput" placeholder="Paste the XML tournament results here..."></textarea>
+      <div class="upload-controls">
+        <input id="xmlFileInput" type="file" accept=".r7t" hidden>
+        <button type="button" onclick="document.getElementById('xmlFileInput').click()">Upload .r7t file</button>
+      </div>
     </div>
 
     <div class="input-group">
       <label for="rbnInput">Instant Matchpoint Scores (RBN file):</label>
       <textarea id="rbnInput" placeholder="Paste the RBN file content here..."></textarea>
+      <div class="upload-controls">
+        <input id="rbnFileInput" type="file" accept=".rbn" hidden>
+        <button type="button" onclick="document.getElementById('rbnFileInput').click()">Upload .rbn file</button>
+      </div>
     </div>
 
-    <button id="calculateBtn" onclick="calculateScores()">Calculate Instant Matchpoint Scores</button>
+    <button id="calculateBtn" onclick="calculateScores()" disabled>Calculate Instant Matchpoint Scores</button>
   </div>
 
   <div id="errorContainer"></div>
   <div id="resultsContainer"></div>
 
   <script>
+    const MAX_UPLOAD_SIZE = 200000
+
+    function updateCalculateButton() {
+      const hasXml = document.getElementById('xmlInput').value.trim().length > 0
+      const hasRbn = document.getElementById('rbnInput').value.trim().length > 0
+      document.getElementById('calculateBtn').disabled = !hasXml || !hasRbn
+    }
+
+    function loadTextFile(file, expectedExtension, textareaId, inputId) {
+      const fileInput = document.getElementById(inputId)
+      fileInput.value = ''
+
+      if (!file) return
+
+      if (!file.name.toLowerCase().endsWith(expectedExtension)) {
+        showError(`Please select a ${expectedExtension} file.`)
+        return
+      }
+
+      if (file.size > MAX_UPLOAD_SIZE) {
+        showError(`The selected file exceeds the 200 kB maximum size.`)
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => {
+        document.getElementById(textareaId).value = reader.result
+        clearError()
+        updateCalculateButton()
+      }
+      reader.onerror = () => showError(`Could not read the selected ${expectedExtension} file.`)
+      reader.readAsText(file)
+    }
+
+    document.getElementById('xmlFileInput').addEventListener('change', event => {
+      loadTextFile(event.target.files[0], '.r7t', 'xmlInput', 'xmlFileInput')
+    })
+    document.getElementById('rbnFileInput').addEventListener('change', event => {
+      loadTextFile(event.target.files[0], '.rbn', 'rbnInput', 'rbnFileInput')
+    })
+    document.getElementById('xmlInput').addEventListener('input', updateCalculateButton)
+    document.getElementById('rbnInput').addEventListener('input', updateCalculateButton)
+
     function getPercentColor(percent) {
       if (percent === null || percent === undefined) return 'transparent'
       
