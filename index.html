@@ -352,13 +352,13 @@
 
     function getPercentColor(percent) {
       if (percent === null || percent === undefined) return 'transparent'
-      
+
       // 50 = white/transparent
       // 100 = slightly desaturated lime green
       // 0 = somewhat desaturated, brighter red
-      
+
       if (percent === 50) return 'transparent'
-      
+
       if (percent > 50) {
         // Interpolate from white (50) to green (100)
         const greenTarget = { r: 127, g: 223, b: 127 } // #7fdf7f
@@ -380,7 +380,7 @@
 
     function formatContract(contract) {
       if (!contract) return ''
-      
+
       // Replace German suit abbreviations with symbols
       let formatted = contract
         .replace(/T/g, '♣')  // Treff (clubs)
@@ -389,13 +389,12 @@
         .replace(/P/g, '♠')  // Pik (spades)
         .replace(/-/g, '−')  // Replace hyphen-minus with mathematical minus
 
-      
       return formatted
     }
 
     function formatScore(scoreText) {
       if (!scoreText) return ''
-      
+
       // Replace hyphen-minus with proper minus sign
       return scoreText.replace(/-/g, '−')
     }
@@ -412,50 +411,50 @@
     function parseXML(xmlString) {
       const parser = new DOMParser()
       const xmlDoc = parser.parseFromString(xmlString, 'text/xml')
-      
+
       // Check for parsing errors
       const parseError = xmlDoc.querySelector('parsererror')
       if (parseError) {
         throw new Error('Invalid XML format')
       }
-      
+
       return xmlDoc
     }
 
     function extractPairsFromXML(xmlDoc) {
       const pairs = new Map()
       const paarElements = xmlDoc.querySelectorAll('Paar')
-      
+
       paarElements.forEach(paar => {
         const nummer = paar.querySelector('Paarnummer')?.textContent?.trim()
         const spielers = paar.querySelectorAll('Spieler')
         const names = Array.from(spielers).map(s => s.textContent.trim()).join(' & ')
-        
+
         if (nummer) {
           pairs.set(nummer, names || `Pair ${nummer}`)
         }
       })
-      
+
       return pairs
     }
 
     function extractBoardResultsFromXML(xmlDoc) {
       const boardResults = new Map()
       const boards = xmlDoc.querySelectorAll('Board')
-      
+
       boards.forEach(board => {
         const boardNum = board.querySelector('Nummer')?.textContent?.trim()
         if (!boardNum) return
-        
+
         const pairings = board.querySelectorAll('Paarung')
         const results = []
-        
+
         pairings.forEach(pairing => {
           const ns = pairing.querySelector('Nord-Sued')?.textContent?.trim()
           const ew = pairing.querySelector('Ost-West')?.textContent?.trim()
           const scoreText = pairing.querySelector('Score')?.textContent?.trim()
           const contract = pairing.querySelector('Kontrakt')?.textContent?.trim() || ''
-          
+
           // Parse score - handle "Pass" as 0
           let score = 0
           if (scoreText && scoreText.toLowerCase() !== 'pass') {
@@ -464,17 +463,17 @@
               score = 0
             }
           }
-          
+
           if (ns && ew) {
             results.push({ ns, ew, score, scoreText, contract })
           }
         })
-        
+
         if (results.length > 0) {
           boardResults.set(boardNum, results)
         }
       })
-      
+
       return boardResults
     }
 
@@ -482,25 +481,25 @@
       const lines = rbnString.split('\n')
       const referenceScores = new Map()
       let currentBoard = null
-      
+
       for (let line of lines) {
         line = line.trim()
         if (!line) continue
-        
+
         // Check for Board label (B followed by space and number)
         if (line.startsWith('B ')) {
           const parts = line.substring(2).split(':')
           currentBoard = parts[0].trim()
           continue
         }
-        
+
         // Check for reference score line (starts with digit)
         if (currentBoard && /^\d/.test(line)) {
           const scoreTable = parseReferenceScoreLine(line)
           referenceScores.set(currentBoard, scoreTable)
         }
       }
-      
+
       return referenceScores
     }
 
@@ -508,30 +507,30 @@
       const entries = line.split(':')
       const table = []
       let inNegativeRange = false
-      
+
       for (let entry of entries) {
         entry = entry.trim()
         if (!entry) continue
-        
+
         if (entry.includes('=')) {
           // Format: S=P
           const [scoreStr, percentStr] = entry.split('=')
           let score = parseInt(scoreStr, 10)
-          
+
           // Check if this is the first negative score
           if (score < 0 && !inNegativeRange) {
             inNegativeRange = true
           }
-          
+
           // If we're in negative range and score appears positive, negate it
           // (negative range values are monotonically decreasing)
           if (inNegativeRange && score > 0) {
             score = -score
           }
-          
+
           score = score * 10 // Multiply by 10 (trailing zero removed)
           const percent = parseFloat(percentStr)
-          
+
           if (!isNaN(score) && !isNaN(percent)) {
             table.push({ score, percent, interpolate: false })
           }
@@ -543,7 +542,7 @@
           }
         }
       }
-      
+
       return table
     }
 
@@ -551,15 +550,15 @@
       if (!referenceTable || referenceTable.length === 0) {
         return null
       }
-      
+
       // Build a list of interpolation points
       const points = []
       let prevScoreEntry = null
       let intermediatePercents = []
-      
+
       for (let i = 0; i < referenceTable.length; i++) {
         const entry = referenceTable[i]
-        
+
         if (entry.interpolate) {
           // Collect intermediate percentage values
           intermediatePercents.push(entry.percent)
@@ -571,7 +570,7 @@
             const endScore = entry.score
             const startPercent = prevScoreEntry.percent
             const endPercent = entry.percent
-            
+
             // Add the intermediate points
             const segments = intermediatePercents.length + 1
             for (let j = 0; j < intermediatePercents.length; j++) {
@@ -579,38 +578,38 @@
               points.push({ score: interpScore, percent: intermediatePercents[j] })
             }
           }
-          
+
           // Add this score point
           points.push({ score: entry.score, percent: entry.percent })
           prevScoreEntry = entry
           intermediatePercents = []
         }
       }
-      
+
       // Now find exact match or interpolate between points
       for (let point of points) {
         if (point.score === score) {
           return point.percent
         }
       }
-      
+
       // Find the two points to interpolate between
       for (let i = 0; i < points.length - 1; i++) {
         const p1 = points[i]
         const p2 = points[i + 1]
-        
+
         // Check if score is between these two points
-        if ((p1.score <= score && score <= p2.score) || 
+        if ((p1.score <= score && score <= p2.score) ||
             (p1.score >= score && score >= p2.score)) {
           // Linear interpolation
           const scoreDiff = p2.score - p1.score
           if (scoreDiff === 0) continue
-          
+
           const position = (score - p1.score) / scoreDiff
           return p1.percent + (p2.percent - p1.percent) * position
         }
       }
-      
+
       // If score is beyond the range, use the nearest endpoint
       if (points.length > 0) {
         if (score < Math.min(points[0].score, points[points.length - 1].score)) {
@@ -620,30 +619,30 @@
           return points[0].score > points[points.length - 1].score ? points[0].percent : points[points.length - 1].percent
         }
       }
-      
+
       return null
     }
 
     function calculateScores() {
       clearError()
       document.getElementById('resultsContainer').innerHTML = ''
-      
+
       const xmlInput = document.getElementById('xmlInput').value.trim()
       const rbnInput = document.getElementById('rbnInput').value.trim()
       const boardOffset = document.getElementById('boardOffset').checked ? 16 : 0
-      
+
       if (!xmlInput || !rbnInput) {
         showError('Please provide both XML tournament results and RBN instant matchpoint scores.')
         return
       }
-      
+
       try {
         // Parse inputs
         const xmlDoc = parseXML(xmlInput)
         const pairs = extractPairsFromXML(xmlDoc)
         const boardResults = extractBoardResultsFromXML(xmlDoc)
         const referenceScores = parseRBN(rbnInput)
-        
+
         // Check if boards in XML exist in RBN
         for (let boardNum of boardResults.keys()) {
           const referenceBoardNum = boardOffset
@@ -654,11 +653,11 @@
             return
           }
         }
-        
+
         // Calculate scores for each pair
         const pairScores = new Map()
         const boardNumbers = Array.from(boardResults.keys()).sort((a, b) => parseInt(a) - parseInt(b))
-        
+
         pairs.forEach((name, pairNum) => {
           pairScores.set(pairNum, {
             name,
@@ -667,7 +666,7 @@
             count: 0
           })
         })
-        
+
         // Process each board
         boardNumbers.forEach(boardNum => {
           const results = boardResults.get(boardNum)
@@ -675,12 +674,12 @@
             ? String(parseInt(boardNum, 10) + boardOffset)
             : boardNum
           const refTable = referenceScores.get(referenceBoardNum)
-          
+
           results.forEach(result => {
             const nsScore = result.score
             const nsPercent = lookupReferenceScore(nsScore, refTable)
             const ewPercent = nsPercent !== null ? 100 - nsPercent : null
-            
+
             // Store N-S pair result
             if (pairScores.has(result.ns)) {
               const pairData = pairScores.get(result.ns)
@@ -694,7 +693,7 @@
                 pairData.count++
               }
             }
-            
+
             // Store E-W pair result
             if (pairScores.has(result.ew)) {
               const pairData = pairScores.get(result.ew)
@@ -710,10 +709,10 @@
             }
           })
         })
-        
+
         // Display results
         displayResults(pairScores, boardNumbers)
-        
+
       } catch (error) {
         showError(`Failed to process inputs: ${error.message}`)
         console.error(error)
@@ -722,26 +721,26 @@
 
     function displayResults(pairScores, boardNumbers) {
       const resultsContainer = document.getElementById('resultsContainer')
-      
+
       let html = '<div class="results-section"><h2>Instant Matchpoint Results</h2><table>'
-      
+
       // Header row - only 3 columns now
       html += '<thead><tr><th>Pair</th><th>Average</th><th>Results</th></tr></thead><tbody>'
-      
+
       // Sort pairs by average score (descending)
       const sortedPairs = Array.from(pairScores.entries()).sort((a, b) => {
         const avgA = a[1].count > 0 ? a[1].total / a[1].count : -1
         const avgB = b[1].count > 0 ? b[1].total / b[1].count : -1
         return avgB - avgA // Descending order
       })
-      
+
       // Data rows
       sortedPairs.forEach(([pairNum, data]) => {
         const average = data.count > 0 ? (data.total / data.count).toFixed(2) : '-'
-        
+
         html += `<tr><td>${pairNum}: ${data.name}</td><td>${average}%</td>`
         html += `<td><div class="results-grid">`
-        
+
         // Add all board results in a flex grid
         boardNumbers.forEach(boardNum => {
           const boardData = data.boards.get(boardNum)
@@ -757,12 +756,12 @@
             html += `</div>`
           }
         })
-        
+
         html += `</div></td></tr>`
       })
-      
+
       html += '</tbody></table></div>'
-      
+
       resultsContainer.innerHTML = html
     }
   </script>
