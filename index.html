@@ -297,6 +297,9 @@
       </div>
     </div>
 
+    <div class="input-group">
+      <label><input id="boardOffset" type="checkbox"> Apply a 16-board offset to reference scores</label>
+    </div>
     <button id="calculateBtn" onclick="calculateScores()" disabled>Calculate Instant Matchpoint Scores</button>
   </div>
 
@@ -625,6 +628,7 @@
       
       const xmlInput = document.getElementById('xmlInput').value.trim()
       const rbnInput = document.getElementById('rbnInput').value.trim()
+      const boardOffset = document.getElementById('boardOffset').checked ? 16 : 0
       
       if (!xmlInput || !rbnInput) {
         showError('Please provide both XML tournament results and RBN instant matchpoint scores.')
@@ -640,8 +644,11 @@
         
         // Check if boards in XML exist in RBN
         for (let boardNum of boardResults.keys()) {
-          if (!referenceScores.has(boardNum)) {
-            showError(`Board ${boardNum} found in tournament results but not in instant matchpoint scores. Please check your input files.`)
+          const referenceBoardNum = boardOffset
+            ? String(parseInt(boardNum, 10) + boardOffset)
+            : boardNum
+          if (!referenceScores.has(referenceBoardNum)) {
+            showError(`Board ${boardNum} found in tournament results but reference board ${referenceBoardNum} not in instant matchpoint scores. Please check your input files.`)
             return
           }
         }
@@ -662,7 +669,10 @@
         // Process each board
         boardNumbers.forEach(boardNum => {
           const results = boardResults.get(boardNum)
-          const refTable = referenceScores.get(boardNum)
+          const referenceBoardNum = boardOffset
+            ? String(parseInt(boardNum, 10) + boardOffset)
+            : boardNum
+          const refTable = referenceScores.get(referenceBoardNum)
           
           results.forEach(result => {
             const nsScore = result.score
